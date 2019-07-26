@@ -10,7 +10,6 @@ import org.eclipse.microprofile.reactive.streams.operators.PublisherBuilder;
 import org.eclipse.microprofile.reactive.streams.operators.SubscriberBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
@@ -39,18 +38,11 @@ public class KinesisConnector implements OutgoingConnectorFactory, IncomingConne
 
   @PostConstruct
   void init() {
-    try {
-      AwsCredentialsProvider awsCredentialsProvider = DefaultCredentialsProvider.builder().build();
-      Region region = Region.of(awsregion);
-      this.client =
-          KinesisAsyncClient.builder()
-              .credentialsProvider(awsCredentialsProvider)
-              .region(region)
-              .build();
-    } catch (Exception e) {
-      LOGGER.error("failed to connect to kinesis");
-      throw new RuntimeException(e);
-    }
+    this.client =
+        KinesisAsyncClient.builder()
+            .credentialsProvider(DefaultCredentialsProvider.builder().build())
+            .region(Region.of(awsregion))
+            .build();
   }
 
   @Override

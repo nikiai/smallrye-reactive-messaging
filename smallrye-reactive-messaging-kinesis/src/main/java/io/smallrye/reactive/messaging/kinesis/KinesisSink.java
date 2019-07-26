@@ -15,6 +15,7 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import static io.smallrye.reactive.messaging.kinesis.KinesisUtils.serializeObject;
@@ -99,8 +100,10 @@ public class KinesisSink {
       }
     }
 
-    //    if (messageBuffer.size() == batchSize) , how to process this in batch.
-    return kinesisClient.putRecords(PutRecordsRequest.builder().records(messageBuffer).build());
-    //    return new CompletableFuture<>();
+    CompletableFuture<PutRecordsResponse> future = new CompletableFuture<>();
+        if (messageBuffer.size() == batchSize) {
+        future = kinesisClient.putRecords(PutRecordsRequest.builder().records(messageBuffer).build());
+     }
+    return future;
   }
 }

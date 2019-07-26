@@ -1,21 +1,15 @@
 package io.smallrye.reactive.messaging.kinesis;
 
 import io.reactivex.Flowable;
-import io.reactivex.FlowableSubscriber;
+import io.reactivex.processors.AsyncProcessor;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.reactive.messaging.Message;
 import org.eclipse.microprofile.reactive.streams.operators.PublisherBuilder;
 import org.eclipse.microprofile.reactive.streams.operators.ReactiveStreams;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import software.amazon.awssdk.core.async.SdkPublisher;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.*;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 class KinesisSource {
   private static final Logger LOGGER = LoggerFactory.getLogger(KinesisSource.class);
@@ -41,26 +35,24 @@ class KinesisSource {
             .shardId(shardId)
             .startingPosition(StartingPosition.builder().type(ShardIteratorType.LATEST).build())
             .build();
-    return responseHandlerBuilder(kinesisClient, request);
+
+    AsyncProcessor<Message<?>> upstream = AsyncProcessor.create();
+    SubscribeToShardResponseHandler responseHandler =
+        SubscribeToShardResponseHandler.builder()
+            .onError(t -> System.err.println("Error during stream - " + t.getMessage()))
+            .onEventStream(
+                p ->
+                    Flowable.fromPublisher(p)
+                        .ofType(SubscribeToShardEvent.class)
+                        .flatMapIterable(SubscribeToShardEvent::records)
+                        .map(this::toMessage)
+                        .subscribe(upstream::onNext))
+            .build();
+    kinesisClient.subscribeToShard(request, responseHandler);
+    return ReactiveStreams.fromPublisher(upstream);
   }
 
-  private static PublisherBuilder<Message<?>> responseHandlerBuilder(
-      KinesisAsyncClient client, SubscribeToShardRequest request) {
-
-    Flowable<Message<?>> upstream = Flowable.empty();
-    io.reactivex.functions.Consumer<List<Record>> copier = e -> System.out.println(e.size());
-
-    SubscribeToShardResponseHandler responseHandler = SubscribeToShardResponseHandler
-      .builder()
-      .onError(t -> System.err.println("Error during stream - " + t.getMessage()))
-      .onEventStream(p -> Flowable.fromPublisher(p)
-        .ofType(SubscribeToShardEvent.class)
-        .flatMapIterable(SubscribeToShardEvent::records)
-        .limit(1000)
-        .buffer(25)
-        .subscribe(copier))
-      .build();
-    client.subscribeToShard(request, responseHandler);
-    return ReactiveStreams.fromPublisher(upstream);
+  private Message<?> toMessage(Record record) {
+    return Message.of(record.data().asByteArray());
   }
 }

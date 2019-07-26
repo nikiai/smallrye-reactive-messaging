@@ -10,20 +10,17 @@ public class SendingKinesisMessage<T> implements KinesisMessage<T> {
   private final String partitionKey;
   private final T value;
   private final String explicitHashKey;
-  private final String sequenceNumberForOrdering;
   private final Supplier<CompletionStage<Void>> ack;
 
-  public SendingKinesisMessage(
-      String streamName,
-      String partitionKey,
-      T value,
-      String explicitHashKey,
-      String sequenceNumberForOrdering,
-      Supplier<CompletionStage<Void>> ack) {
+  SendingKinesisMessage(
+    String streamName,
+    String partitionKey,
+    T value,
+    String explicitHashKey,
+    Supplier<CompletionStage<Void>> ack) {
     this.streamName = streamName;
     this.partitionKey = partitionKey;
     this.value = value;
-    this.sequenceNumberForOrdering = sequenceNumberForOrdering;
     this.explicitHashKey = explicitHashKey;
     this.ack = ack;
   }
@@ -57,8 +54,4 @@ public class SendingKinesisMessage<T> implements KinesisMessage<T> {
     return this.explicitHashKey;
   }
 
-  @Override
-  public String getSequenceNumberForOrdering() {
-    return this.sequenceNumberForOrdering;
-  }
 }

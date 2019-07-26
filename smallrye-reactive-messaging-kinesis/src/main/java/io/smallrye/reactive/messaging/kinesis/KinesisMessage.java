@@ -9,19 +9,19 @@ import software.amazon.awssdk.core.SdkBytes;
 public interface KinesisMessage<T> extends Message<T> {
 
     static <T> KinesisMessage<T> of(String key, T value) {
-        return new SendingKinesisMessage<>( null,key, value, null, null, null);
+        return new SendingKinesisMessage<>( null,key, value, null, null);
     }
 
     static <T> KinesisMessage<T> withKeyAndValue(String key, T value) {
-        return new SendingKinesisMessage<>(null, key, value, null, null, null);
+        return new SendingKinesisMessage<>(null, key, value, null, null);
     }
 
     static <T> KinesisMessage< T> of(String stream, String key, T value) {
-        return new SendingKinesisMessage<>(stream, key, value, null, null, null);
+        return new SendingKinesisMessage<>(stream, key, value, null, null);
     }
 
-    static <T> KinesisMessage< T> of(String stream, String key, T value, String explicitHashKey, String sequenceNumberForOrdering) {
-        return new SendingKinesisMessage<>(stream, key, value, explicitHashKey, sequenceNumberForOrdering, null);
+    static <T> KinesisMessage< T> of(String stream, String key, T value, String explicitHashKey) {
+        return new SendingKinesisMessage<>(stream, key, value, explicitHashKey,  null);
     }
 
     default KinesisMessage<T> withAck(Supplier<CompletionStage<Void>> ack) {
@@ -35,8 +35,6 @@ public interface KinesisMessage<T> extends Message<T> {
     String getStreamName();
 
     String getExplicitHashKey();
-
-    String getSequenceNumberForOrdering();
 
 }
 

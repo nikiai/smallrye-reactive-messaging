@@ -4,7 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 
-public class KinesisUtils {
+class KinesisUtils {
 
   static byte[] serializeObject(Object obj) throws IOException {
     ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
