@@ -1,14 +1,20 @@
 package io.smallrye.reactive.messaging.kinesis;
 
+import io.reactivex.Flowable;
+import io.reactivex.FlowableSubscriber;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.reactive.messaging.Message;
 import org.eclipse.microprofile.reactive.streams.operators.PublisherBuilder;
 import org.eclipse.microprofile.reactive.streams.operators.ReactiveStreams;
+import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.core.async.SdkPublisher;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.*;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 class KinesisSource {
@@ -18,7 +24,7 @@ class KinesisSource {
   private final String streamArn;
   private final String shardId;
 
-  KinesisSource(KinesisAsyncClient kinesisClient,Config config) {
+  KinesisSource(KinesisAsyncClient kinesisClient, Config config) {
     this.kinesisClient = kinesisClient;
     this.streamArn = config.getOptionalValue("streamArn", String.class).orElse(null);
     if (this.streamArn == null) {
@@ -29,27 +35,32 @@ class KinesisSource {
   }
 
   PublisherBuilder<? extends Message<?>> source() {
-    SubscribeToShardRequest request = SubscribeToShardRequest.builder()
-      .consumerARN(streamArn)
-      .shardId(shardId)
-      .startingPosition(StartingPosition.builder().type(ShardIteratorType.LATEST).build())
-      .build();
-    return ReactiveStreams.fromCompletionStage(responseHandlerBuilder(kinesisClient,request));
+    SubscribeToShardRequest request =
+        SubscribeToShardRequest.builder()
+            .consumerARN(streamArn)
+            .shardId(shardId)
+            .startingPosition(StartingPosition.builder().type(ShardIteratorType.LATEST).build())
+            .build();
+    return responseHandlerBuilder(kinesisClient, request);
   }
 
-  private static CompletableFuture<Message<?>> responseHandlerBuilder(KinesisAsyncClient client, SubscribeToShardRequest request) {
-    SubscribeToShardResponseHandler.Visitor visitor = SubscribeToShardResponseHandler.Visitor
-      .builder()
-      .onSubscribeToShardEvent(e -> System.out.println("Received subscribe to shard event " + e))
-      .build();
+  private static PublisherBuilder<Message<?>> responseHandlerBuilder(
+      KinesisAsyncClient client, SubscribeToShardRequest request) {
+
+    Flowable<Message<?>> upstream = Flowable.empty();
+    io.reactivex.functions.Consumer<List<Record>> copier = e -> System.out.println(e.size());
 
     SubscribeToShardResponseHandler responseHandler = SubscribeToShardResponseHandler
       .builder()
       .onError(t -> System.err.println("Error during stream - " + t.getMessage()))
-      .subscriber(visitor)
+      .onEventStream(p -> Flowable.fromPublisher(p)
+        .ofType(SubscribeToShardEvent.class)
+        .flatMapIterable(SubscribeToShardEvent::records)
+        .limit(1000)
+        .buffer(25)
+        .subscribe(copier))
       .build();
-    // FIXME hack for returning a message to PublisherBuilder
-    return client.subscribeToShard(request, responseHandler).thenApply(x -> KinesisMessage.of("test","test"));
+    client.subscribeToShard(request, responseHandler);
+    return ReactiveStreams.fromPublisher(upstream);
   }
-
 }
