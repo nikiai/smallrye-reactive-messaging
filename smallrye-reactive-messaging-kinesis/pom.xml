@@ -48,10 +48,10 @@
       <artifactId>smallrye-reactive-messaging-provider-1.0</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <wdependency>
+    <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>sts</artifactId>
-    </wdependency>
+    </dependency>
     <dependency>
       <groupId>io.debezium</groupId>
       <artifactId>debezium-core</artifactId>

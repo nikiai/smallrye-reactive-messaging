@@ -14,10 +14,7 @@ import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientAsyncConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.StartingPosition;
-import software.amazon.awssdk.services.kinesis.model.SubscribeToShardEvent;
-import software.amazon.awssdk.services.kinesis.model.SubscribeToShardRequest;
-import software.amazon.awssdk.services.kinesis.model.SubscribeToShardResponseHandler;
+import software.amazon.awssdk.services.kinesis.model.*;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -45,7 +42,7 @@ class KinesisSource {
             .credentialsProvider(awsCredentialsProvider)
             .region(region)
             .build();
-    this.stream = config.getOptionalValue("key", String.class).orElse(null);
+    this.stream = config.getOptionalValue("streamName", String.class).orElse(null);
     if (this.stream == null) {
       LOGGER.warn(
           "No default stream configured, only sending messages with an explicit stream set");
@@ -64,7 +61,6 @@ class KinesisSource {
               .buffer(25)
               .subscribe(e -> System.out.println("Record batch = " + e)))
         .build();
-
     Consumer<SubscribeToShardRequest.Builder> builderConsumer = requestBuilder -> {
       requestBuilder.consumerARN("");
       requestBuilder.shardId("");

@@ -14,15 +14,17 @@ import software.amazon.awssdk.core.SdkBytes;
 import software.amazon.awssdk.core.client.config.ClientAsyncConfiguration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
-import software.amazon.awssdk.services.kinesis.model.PutRecordRequest;
-import software.amazon.awssdk.services.kinesis.model.PutRecordResponse;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsRequest;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
+import software.amazon.awssdk.services.kinesis.model.PutRecordsResponse;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 
 public class KinesisSink {
   private static final Logger LOGGER = LoggerFactory.getLogger(KinesisSink.class);
@@ -32,7 +34,8 @@ public class KinesisSink {
   private final String stream;
   private final String partitionKey;
   private final SubscriberBuilder<? extends Message<?>, Void> subscriber;
-
+  private final int batchSize;
+  private List<PutRecordsRequestEntry> messageBuffer;
 
   KinesisSink(Vertx vertx, Config config) {
     this.vertx = Objects.requireNonNull(vertx, "Vert.x instance must not be `null`");
@@ -52,14 +55,17 @@ public class KinesisSink {
           "No default stream configured, only sending messages with an explicit stream set");
     }
     this.partitionKey = config.getOptionalValue("partitionKey", String.class).orElse(null);
-    this.subscriber = ReactiveStreams.<Message<?>>builder()
-      .flatMapCompletionStage(
-        msg -> {
-          CompletableFuture<Message> future = new CompletableFuture<>();
-          sendMessage(msg, this.partitionKey);
-          return future;
-        })
-      .ignore();
+    this.subscriber =
+        ReactiveStreams.<Message<?>>builder()
+            .flatMapCompletionStage(
+                msg -> {
+                  CompletableFuture<Message> future = new CompletableFuture<>();
+                  sendMessage(msg, this.partitionKey);
+                  return future;
+                })
+            .ignore();
+    this.batchSize = config.getOptionalValue("batchSize", Integer.class).orElse(1);
+    this.messageBuffer = new ArrayList<>(batchSize);
   }
 
   SubscriberBuilder<? extends Message<?>, Void> sink() {
@@ -70,81 +76,78 @@ public class KinesisSink {
     if (null == kinesisClient) {
       throw new RuntimeException("AmazonKinesisAsync is not initialized");
     }
+    PutRecordsRequestEntry.Builder recordBuilder = PutRecordsRequestEntry.builder();
+    PutRecordsRequestEntry record;
+    String actualTopicToBeUSed = this.stream;
+    if (message instanceof KinesisMessage) {
+      KinesisMessage km = ((KinesisMessage) message);
+      if (this.stream == null && km.getStreamName() == null) {
+        LOGGER.error("Ignoring message - no stream set");
+      }
 
-    Consumer<PutRecordRequest.Builder> builderConsumer =
-        recordBuilder -> {
-          PutRecordRequest record;
-          if (message instanceof KinesisMessage) {
-            KinesisMessage km = ((KinesisMessage) message);
-            if (this.stream == null && km.getStreamName() == null) {
-              LOGGER.error("Ignoring message - no stream set");
-            }
+      if (km.getPartitionKey() != null) {
+        recordBuilder.partitionKey(km.getPartitionKey());
+      }
 
-            if (km.getPartitionKey() != null) {
-              recordBuilder.partitionKey(km.getPartitionKey());
-            }
+      if (km.getPartitionKey() == null && partitionKey != null) {
+        recordBuilder.partitionKey(partitionKey);
+      }
 
-            if (km.getPartitionKey() == null && partitionKey != null) {
-              recordBuilder.partitionKey(partitionKey);
-            }
+      if (km.getStreamName() != null) {
+        actualTopicToBeUSed = km.getStreamName();
+      }
 
-            String actualTopicToBeUSed = this.stream;
-            if (km.getStreamName() != null) {
-              actualTopicToBeUSed = km.getStreamName();
-            }
+      if (km.getExplicitHashKey() != null) {
+        recordBuilder.explicitHashKey(km.getExplicitHashKey());
+      }
 
-            if (km.getExplicitHashKey() != null) {
-              recordBuilder.explicitHashKey(km.getExplicitHashKey());
-            }
+      if (actualTopicToBeUSed == null) {
+        LOGGER.error("Ignoring message - no stream set");
+      } else {
+        try {
+          record =
+              recordBuilder.data(SdkBytes.fromByteArray(serializeObject(km.getPayload()))).build();
+          messageBuffer.add(record);
+          LOGGER.info("Sending message {} to Kinesis stream '{}'", message, actualTopicToBeUSed);
+        } catch (IOException e) {
+          LOGGER.error("Ignoring message - cannot serialize the object");
+        }
+      }
+    } else {
+      try {
+        record =
+            recordBuilder
+                .data(SdkBytes.fromByteArray(serializeObject(message.getPayload())))
+                .build();
+        messageBuffer.add(record);
+        LOGGER.info("Sending message {} to Kinesis stream '{}'", message, actualTopicToBeUSed);
+      } catch (IOException e) {
+        LOGGER.error("Ignoring message - cannot serialize the object");
+      }
+    }
 
-            if (km.getSequenceNumberForOrdering() != null) {
-              recordBuilder.sequenceNumberForOrdering(km.getSequenceNumberForOrdering());
-            }
-            if (actualTopicToBeUSed == null) {
-              LOGGER.error("Ignoring message - no stream set");
-            } else {
-              try {
-                record =
-                    recordBuilder
-                        .data(SdkBytes.fromByteArray(serializeObject(km.getPayload())))
-                        .build();
-                LOGGER.info(
-                    "Sending message {} to Kinesis stream '{}'", message, record.streamName());
-              } catch (IOException e) {
-                LOGGER.error("Ignoring message - cannot serialize the object");
-              }
-            }
-          } else {
-            try {
-              record =
-                  recordBuilder
-                      .data(SdkBytes.fromByteArray(serializeObject(message.getPayload())))
-                      .build();
-              LOGGER.info(
-                  "Sending message {} to Kinesis stream '{}'", message, record.streamName());
-            } catch (IOException e) {
-              LOGGER.error("Ignoring message - cannot serialize the object");
-            }
-          }
-        };
-
-    try {
-      CompletableFuture<PutRecordResponse> future = kinesisClient.putRecord(builderConsumer);
-      future.whenComplete(
-          (result, e) ->
-              vertx.runOnContext(
-                  none -> {
-                    if (e != null) {
-                      LOGGER.error("Message delivery failed ...1");
-                      e.printStackTrace();
-                    } else {
-                      String sequenceNumber = result.sequenceNumber();
-                      LOGGER.debug("Message sequence number: " + sequenceNumber);
-                    }
-                  }));
-    } catch (Exception exc) {
-      LOGGER.error("Message delivery failed ...2");
-      exc.printStackTrace();
+    if (messageBuffer.size() == batchSize) {
+      try {
+        CompletableFuture<PutRecordsResponse> future =
+            kinesisClient.putRecords(PutRecordsRequest.builder().records(messageBuffer).build());
+        future.whenComplete(
+            (result, e) ->
+                vertx.runOnContext(
+                    none -> {
+                      if (e != null) {
+                        LOGGER.error("Message delivery failed ...1");
+                        e.printStackTrace();
+                      } else {
+                        int failedRecordCount = result.failedRecordCount();
+                        LOGGER.debug("Delivery failure for {} message ", failedRecordCount);
+                      }
+                    }));
+      } catch (Exception exc) {
+        LOGGER.error("Message delivery failed ...2");
+        exc.printStackTrace();
+      } finally{
+        messageBuffer = new ArrayList<>(batchSize);
+      }
     }
   }
 
