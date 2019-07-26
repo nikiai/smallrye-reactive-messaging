@@ -18,7 +18,6 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
-import java.util.Optional;
 
 @ApplicationScoped
 @Connector(KinesisConnector.CONNECTOR_NAME)
@@ -27,10 +26,6 @@ public class KinesisConnector implements OutgoingConnectorFactory, IncomingConne
   static final String CONNECTOR_NAME = "smallrye-kinesis";
 
   private KinesisAsyncClient client;
-
-  @Inject
-  @ConfigProperty(name = "aws-profile")
-  private Optional<String> awsProfile;
 
   @Inject
   @ConfigProperty(name = "aws-region", defaultValue = "ap-south-1")

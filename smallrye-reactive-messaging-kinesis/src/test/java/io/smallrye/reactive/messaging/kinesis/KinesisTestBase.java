@@ -14,18 +14,6 @@ import org.junit.Before;
 
 public class KinesisTestBase {
 
-    Vertx vertx;
-
-    @Before
-    public void setup() {
-        vertx = Vertx.vertx();
-    }
-
-    @After
-    public void tearDown() {
-        vertx.close();
-    }
-
     static Weld baseWeld() {
         Weld weld = new Weld();
         weld.addBeanClass(MediatorFactory.class);

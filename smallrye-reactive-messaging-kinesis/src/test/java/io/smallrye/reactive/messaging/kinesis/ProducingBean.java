@@ -2,7 +2,6 @@ package io.smallrye.reactive.messaging.kinesis;
 
 import io.reactivex.Flowable;
 import org.eclipse.microprofile.config.Config;
-import org.eclipse.microprofile.reactive.messaging.Acknowledgment;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.reactive.messaging.Message;
 import org.eclipse.microprofile.reactive.messaging.Outgoing;
@@ -19,7 +18,7 @@ public class ProducingBean {
     @Incoming("niki-test")
     @Outgoing("niki-test-out")
     public Message<Integer> process(Message<Integer> input) {
-        return Message.of(input.getPayload() + 1, input::ack);
+        return KinesisMessage.of("app-1",input.getPayload() + 1);
     }
 
     @Outgoing("niki-test")
