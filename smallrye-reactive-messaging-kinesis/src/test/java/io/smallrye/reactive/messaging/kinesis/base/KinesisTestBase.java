@@ -1,4 +1,17 @@
-package io.smallrye.reactive.messaging.kinesis;
+package io.smallrye.reactive.messaging.kinesis.base;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.inject.Produces;
+
+import io.smallrye.reactive.messaging.kinesis.ConsumptionBean;
+import io.smallrye.reactive.messaging.kinesis.KinesisConnector;
+import io.smallrye.reactive.messaging.kinesis.ProducingBean;
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.weld.environment.se.Weld;
 
 import io.smallrye.reactive.messaging.MediatorFactory;
 import io.smallrye.reactive.messaging.extension.MediatorManager;
@@ -6,15 +19,10 @@ import io.smallrye.reactive.messaging.extension.ReactiveMessagingExtension;
 import io.smallrye.reactive.messaging.extension.StreamProducer;
 import io.smallrye.reactive.messaging.impl.ConfiguredChannelFactory;
 import io.smallrye.reactive.messaging.impl.InternalChannelRegistry;
-import io.smallrye.reactive.messaging.kinesis.KinesisConnector;
-import io.vertx.reactivex.core.Vertx;
-import org.jboss.weld.environment.se.Weld;
-import org.junit.After;
-import org.junit.Before;
 
 public class KinesisTestBase {
 
-    static Weld baseWeld() {
+    public static Weld baseWeld() {
         Weld weld = new Weld();
         weld.addBeanClass(MediatorFactory.class);
         weld.addBeanClass(MediatorManager.class);
@@ -26,5 +34,4 @@ public class KinesisTestBase {
         weld.disableDiscovery();
         return weld;
     }
-
 }

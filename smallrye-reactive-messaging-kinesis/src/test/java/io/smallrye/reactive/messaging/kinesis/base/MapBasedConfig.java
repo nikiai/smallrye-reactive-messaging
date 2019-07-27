@@ -1,12 +1,12 @@
-package io.smallrye.reactive.messaging.kinesis;
-
-import org.eclipse.microprofile.config.Config;
-import org.eclipse.microprofile.config.spi.ConfigSource;
+package io.smallrye.reactive.messaging.kinesis.base;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+
+import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.spi.ConfigSource;
 
 /**
  * An implementation of {@link Config} based on a simple {@link Map}.
