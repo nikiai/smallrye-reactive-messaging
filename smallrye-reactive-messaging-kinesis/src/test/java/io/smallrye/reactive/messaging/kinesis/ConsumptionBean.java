@@ -45,7 +45,7 @@ public class ConsumptionBean {
   @Produces
   @ConfigProperty(name = "aws.region")
   public String awsRegion() {
-    return "localhost:9092";
+    return "ap-south-1";
   }
 
   public List<Integer> getResults() {

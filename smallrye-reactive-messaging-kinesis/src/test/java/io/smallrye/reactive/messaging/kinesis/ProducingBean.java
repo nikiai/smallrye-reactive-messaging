@@ -41,6 +41,6 @@ public class ProducingBean {
   @Produces
   @ConfigProperty(name = "aws.region")
   public String awsRegion() {
-    return "localhost:9092";
+    return "ap-south-1";
   }
 }
