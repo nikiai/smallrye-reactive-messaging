@@ -35,11 +35,4 @@ public class KinesisSinkTest extends KinesisTestBase {
     weld.addBeanClass(ConsumptionBean.class);
     container = weld.initialize();
   }
-
-  private KinesisAsyncClient client(){
-    return KinesisAsyncClient.builder()
-      .credentialsProvider(DefaultCredentialsProvider.builder().build())
-      .region(Region.of("ap-south-1"))
-      .build();
-  }
 }
