@@ -4,8 +4,6 @@ import io.reactivex.Flowable;
 import io.smallrye.reactive.messaging.kinesis.base.MapBasedConfig;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.reactive.messaging.Incoming;
-import org.eclipse.microprofile.reactive.messaging.Message;
 import org.eclipse.microprofile.reactive.messaging.Outgoing;
 import org.reactivestreams.Publisher;
 
@@ -17,15 +15,9 @@ import java.util.Map;
 @ApplicationScoped
 public class ProducingBean {
 
-  @Incoming("niki-test")
   @Outgoing("niki-test-out")
-  public Message<Integer> process(Message<Integer> input) {
-    return KinesisMessage.of("app-1", input.getPayload() + 1);
-  }
-
-  @Outgoing("niki-test")
   public Publisher<Integer> source() {
-    return Flowable.range(0, 10);
+    return Flowable.range(0, 50);
   }
 
   @Produces

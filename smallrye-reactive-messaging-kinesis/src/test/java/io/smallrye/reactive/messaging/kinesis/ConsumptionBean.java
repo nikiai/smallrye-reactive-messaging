@@ -37,7 +37,7 @@ public class ConsumptionBean {
     String prefix = "kinesis.messaging.incoming.";
     Map<String, Object> config = new HashMap<>();
     config.put(prefix + "connector", KinesisConnector.CONNECTOR_NAME);
-    config.put(prefix + "stream", "niki-test");
+    config.put(prefix + "stream", "niki-test-oyut");
     config.put("partitionKey", "app-1");
     return new MapBasedConfig(config);
   }
